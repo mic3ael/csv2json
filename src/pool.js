@@ -1,6 +1,6 @@
 'use strict';
 
-class RoundRobin {
+class Pool {
   #instances;
   #timeout;
   #free;
@@ -11,13 +11,14 @@ class RoundRobin {
 
   constructor(createInstance, options = {}) {
     const { size = 0, timeout = 0 } = options;
-    this.#instances = new Array(size).fill(null);
     this.#free = new Array(size).fill(true);
     this.#available = 0;
-    this.#queue = new Map();
     this.#current = 0;
     this.#timeout = timeout;
     this.#attachedTimeoutIDs = new WeakMap();
+    this.#instances = new Array(size).fill(null);
+    this.#queue = new Map();
+
     for (let index = 0; index < size; index++) {
       const instance = createInstance(this.#releaseInstance);
       this.#instances[index] = instance;
@@ -26,9 +27,11 @@ class RoundRobin {
     }
   }
   async #nextInstance() {
+    if (!this.#instances.length) throw new Error('pool is empty');
+
     const instance = this.#instances[this.#current];
     const free = this.#free[this.#current];
-    this.#current = (this.#current + 1) % this.#available;
+    this.#current = (this.#current + 1) % this.#instances.length;
 
     if (!free) {
       return new Promise((resolve) => {
@@ -53,24 +56,37 @@ class RoundRobin {
       if (resolve) setTimeout(resolve, 0, instance);
       return;
     }
+
     this.#free[index] = true;
+
     if (terminate) {
-      await instance.terminate();
+      await this.#deleteInstance(instance);
       setTimeout(terminate, 0);
     }
   };
   #exceeds = (instance) => {
-    console.log(
-      `RoundRobin: time limit exceeded -> release instance ${instance.name}`
-    );
+    console.log(`RoundRobin: time limit exceeded -> release instance ${instance.name}`);
     instance.cancel();
     this.#releaseInstance(instance);
   };
+  async #deleteInstance(instance) {
+    const index = this.#findInstanceIndex(instance);
+    if (this.#free[index]) {
+      await instance.terminate();
+      clearTimeout(this.#attachedTimeoutIDs.get(instance));
+      this.#attachedTimeoutIDs.delete(instance);
+      this.#free.slice(index, index);
+      this.#instances.slice(index, index);
+      this.#queue.delete(instance);
+    } else {
+      return new Promise((resolve) => { this.#queue.get(instance).terminate = resolve; });
+    }
+  }
   #attachInstance(instance) {
     const index = this.#findInstanceIndex(instance);
     this.#free[index] = false;
-    // const attachedTimeoutID = setTimeout(this.#exceeds, this.#timeout, instance);
-    // this.#attachedTimeoutIDs.set(instance, attachedTimeoutID);
+    const attachedTimeoutID = setTimeout(this.#exceeds, this.#timeout, instance);
+    this.#attachedTimeoutIDs.set(instance, attachedTimeoutID);
   }
   async getInstance() {
     const instance = await this.#nextInstance();
@@ -82,14 +98,10 @@ class RoundRobin {
     const promises = new Array(this.#instances.length);
     for (let i = 0; i < this.#instances.length; i++) {
       const instance = this.#instances[i];
-      if (this.#free[i])
-        promises[i] = instance.terminate();
-      else {
-        promises[i] = new Promise((resolve) => { this.#queue.get(instance).terminate = resolve; });
-      }
+      promises[i] = this.#deleteInstance(instance);
     }
     return Promise.all(promises);
   }
 }
 
-module.exports = RoundRobin;
+module.exports = Pool;

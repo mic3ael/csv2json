@@ -6,7 +6,7 @@ const { writeFile } = require('node:fs/promises');
 const readline = require('node:readline');
 const { finished } = require('node:stream/promises');
 const process = require('node:process');
-const RoundRobin = require('./src/roundRobin.js');
+const Pool = require('./src/pool.js');
 const { threadFactory } = require('./src/thread.js');
 
 const closeStream = async (stream, callback = () => { }) => {
@@ -36,7 +36,12 @@ const parse = async ({ inputPath, seperator = ',', headers = [] }, callback) => 
     },
   };
   const numCPUs = os.cpus().length; // Number of logical processors
-  const lb = new RoundRobin(threadFactory(resolver, { headers, seperator }), { size: numCPUs - 1/* main thread doing some work*/, timeout: 100 });
+  const lb = new Pool(threadFactory(resolver, { headers, seperator }),
+    {
+      size: numCPUs - 1/* main thread doing some work*/,
+      timeout: 300
+    }
+  );
   const bufferSize = 2000;
   let lines = [];
   for await (const line of linesIterator) {
@@ -99,8 +104,8 @@ async function main() {
   const resources = ['data/0.csv', 'data/customers-100.csv', 'data/customers-1000.csv', 'data/customers-10000.csv', 'data/customers-100000.csv', 'data/1.csv'];
   const parser = init();
   // await parser.parse(resources[1]).toFile('copy.json');
-  await parser.parse(resources[resources.length - 1]).toFile('copy.json');
-  // await parser.parse(resources[resources.length - 2]).toFile('copy.json');
+  // await parser.parse(resources[resources.length - 1]).toFile('copy.json');
+  await parser.parse(resources[resources.length - 2]).toFile('copy.json');
   // const data = await parser.parse(resources[resources.length - 1]).toJson('copy.json');
   // console.log("data: ", data.length);
 }
