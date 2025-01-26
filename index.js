@@ -20,6 +20,15 @@ const closeStream = async (stream, callback = () => { }) => {
   }
 }
 
+const flushFactory = (callback, readable) => (data) => {
+  for (let i = 0; i < data.length; i++) {
+    const jsonArray = data[i];
+    for (let j = 0; j < jsonArray.length; j++)
+      callback(jsonArray[j], readable);
+  }
+};
+
+
 const parse = async ({ inputPath, seperator = ',', headers = [] }, callback) => {
   const readable = createReadStream(inputPath);
   const rl = readline.createInterface(readable);
@@ -29,32 +38,31 @@ const parse = async ({ inputPath, seperator = ',', headers = [] }, callback) => 
     if (done) throw new Error('file is empty');
     headers = value.replace(/["']/g, "").split(seperator).map(h => h.split(' ').join(''));
   }
-  const resolver = {
-    add(jsonArray) {
-      for (let i = 0; i < jsonArray.length; i++)
-        callback(jsonArray[i], readable);
-    },
-  };
-  const numCPUs = os.cpus().length; // Number of logical processors
-  const lb = new Pool(threadFactory(resolver, { headers, seperator }),
-    {
-      size: numCPUs - 1/* main thread doing some work*/,
-      timeout: 300
-    }
-  );
+
+  const flush = flushFactory(callback, readable);
+  const poolSize = os.cpus().length - 1; // Number of logical processors, - 1 main thread
+  const lb = new Pool(threadFactory({ headers, seperator }), { size: poolSize, timeout: 300 });
   const bufferSize = 2000;
   let lines = [];
+  let processes = [];
   for await (const line of linesIterator) {
     if (!line.length) continue;
     lines.push(line);
     if (lines.length === bufferSize) {
       const instance = await lb.getInstance();
-      instance.do(lines);
+      processes.push(instance.do(lines));
       lines = [];
+    }
+    if (processes.length === poolSize) {
+      const data = await Promise.all(processes);
+      flush(data);
+      processes = [];
     }
   }
   const instance = await lb.getInstance();
-  instance.do(lines);
+  processes.push(instance.do(lines));
+  const data = await Promise.all(processes);
+  flush(data);
   await lb.cleanup();
   rl.on('close', async () => { closeStream(readable); });
 };
@@ -103,9 +111,9 @@ const init = (options = {}) => {
 async function main() {
   const resources = ['data/0.csv', 'data/customers-100.csv', 'data/customers-1000.csv', 'data/customers-10000.csv', 'data/customers-100000.csv', 'data/1.csv'];
   const parser = init();
-  // await parser.parse(resources[1]).toFile('copy.json');
+  await parser.parse(resources[1]).toFile('copy.json');
   // await parser.parse(resources[resources.length - 1]).toFile('copy.json');
-  await parser.parse(resources[resources.length - 2]).toFile('copy.json');
+  // await parser.parse(resources[resources.length - 2]).toFile('copy.json');
   // const data = await parser.parse(resources[resources.length - 1]).toJson('copy.json');
   // console.log("data: ", data.length);
 }

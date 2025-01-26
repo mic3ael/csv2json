@@ -1,23 +1,34 @@
 'use strict';
 
-const { Worker } = require('node:worker_threads');
+const { Worker, workerData } = require('node:worker_threads');
+const path = require('node:path');
 
 class Thread {
   #worker;
   #index;
-  constructor(i, resultResolver, params, releaseInstance) {
+  #resolve;
+  #reject;
+
+  constructor(i, params, releaseInstance) {
     this.#index = i;
-    this.#worker = new Worker(`${__dirname}/worker.js`, { workerData: { id: this.#index, params } });
-    this.#init(resultResolver, releaseInstance);
+    const workerPath = `${__dirname}/worker.js`;
+    this.#worker = new Worker(workerPath, { workerData: { id: this.#index, params } });
+    this.#init(releaseInstance);
   }
-  #init(resultResolver, releaseInstance) {
+  #init(releaseInstance) {
     this.#worker.on('message', async (msg) => {
-      resultResolver.add(msg.jsonArray);
       await releaseInstance(this);
+      if (this.#resolve) setTimeout(this.#resolve, 0, msg.jsonArray);
+      this.#resolve = null;
+      this.#reject = null;
     });
     this.#worker.on('error', async (err) => {
       console.error(`Worker ${this.#index} error:`, err);
       await releaseInstance(this);
+      if (this.#reject) setTimeout(this.#reject, 0, err);
+      this.#resolve = null;
+      this.#reject = null;
+
     });
     this.#worker.on('exit', (code) => {
       if (code !== 0) {
@@ -29,18 +40,23 @@ class Thread {
     return this.#index;
   }
   do(strs) {
-    this.#worker.postMessage({ strs });
+    return new Promise((resolve, reject) => {
+      this.#resolve = resolve;
+      this.#reject = reject;
+      this.#worker.postMessage({ strs });
+    });
   }
   terminate() {
     return this.#worker.terminate();
   }
 }
 
-const threadFactory = (resultResolver, params) => (() => {
-  let index = -1;
+const threadFactory = (params) => (() => {
+  let index = 0;
   return (releaseInstance) => {
+    const thread = new Thread(index, params, releaseInstance);
     index++;
-    return new Thread(index, resultResolver, params, releaseInstance);
+    return thread;
   }
 })();
 

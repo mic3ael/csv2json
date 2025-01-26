@@ -4,7 +4,6 @@ class Pool {
   #instances;
   #timeout;
   #free;
-  #available;
   #queue;
   #attachedTimeoutIDs;
   #current;
@@ -12,7 +11,6 @@ class Pool {
   constructor(createInstance, options = {}) {
     const { size = 0, timeout = 0 } = options;
     this.#free = new Array(size).fill(true);
-    this.#available = 0;
     this.#current = 0;
     this.#timeout = timeout;
     this.#attachedTimeoutIDs = new WeakMap();
@@ -23,7 +21,6 @@ class Pool {
       const instance = createInstance(this.#releaseInstance);
       this.#instances[index] = instance;
       this.#queue.set(instance, { terminate: null, data: [] });
-      this.#available++;
     }
   }
   async #nextInstance() {
@@ -38,6 +35,7 @@ class Pool {
         this.#queue.get(instance).data.push(resolve);
       });
     }
+
     return instance;
   }
   #findInstanceIndex(instance) {
