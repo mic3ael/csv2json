@@ -28,6 +28,7 @@ const flushFactory = (callback, readable) => (data) => {
   }
 };
 
+const getHeader = (str, seperator) => str.replace(/["']/g, "").split(seperator).map(h => h.split(' ').join(''));
 
 const parse = async ({ inputPath, seperator = ',', headers = [] }, callback) => {
   const readable = createReadStream(inputPath);
@@ -36,7 +37,7 @@ const parse = async ({ inputPath, seperator = ',', headers = [] }, callback) => 
   if (headers.length === 0) {
     const { done, value } = await linesIterator.next();
     if (done) throw new Error('file is empty');
-    headers = value.replace(/["']/g, "").split(seperator).map(h => h.split(' ').join(''));
+    headers = getHeader(value, seperator);
   }
 
   const flush = flushFactory(callback, readable);
@@ -52,11 +53,11 @@ const parse = async ({ inputPath, seperator = ',', headers = [] }, callback) => 
       const instance = await lb.getInstance();
       processes.push(instance.do(lines));
       lines = [];
-    }
-    if (processes.length === poolSize) {
-      const data = await Promise.all(processes);
-      flush(data);
-      processes = [];
+      if (processes.length === poolSize) {
+        const data = await Promise.all(processes);
+        flush(data);
+        processes = [];
+      }
     }
   }
   const instance = await lb.getInstance();
@@ -111,9 +112,9 @@ const init = (options = {}) => {
 async function main() {
   const resources = ['data/0.csv', 'data/customers-100.csv', 'data/customers-1000.csv', 'data/customers-10000.csv', 'data/customers-100000.csv', 'data/1.csv'];
   const parser = init();
-  await parser.parse(resources[1]).toFile('copy.json');
+  // await parser.parse(resources[1]).toFile('copy.json');
   // await parser.parse(resources[resources.length - 1]).toFile('copy.json');
-  // await parser.parse(resources[resources.length - 2]).toFile('copy.json');
+  await parser.parse(resources[resources.length - 2]).toFile('copy.json');
   // const data = await parser.parse(resources[resources.length - 1]).toJson('copy.json');
   // console.log("data: ", data.length);
 }
