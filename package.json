@@ -1,0 +1,17 @@
+{
+  "name": "large-cvs-json",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "start:prof": "node --prof index.js",
+    "other": "node test.js",
+    "other2": "node test2.js"
+  },
+  "dependencies": {
+    "convert-csv-to-json": "^2.50.0",
+    "csvtojson": "^2.0.10"
+  }
+}

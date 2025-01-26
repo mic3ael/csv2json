@@ -1,0 +1,6 @@
+node_modules/
+test*
+copy*
+data/
+.git
+.DS_Store
