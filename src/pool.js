@@ -6,12 +6,11 @@ class Pool {
   #free;
   #queue;
   #attachedTimeoutIDs;
-  #current;
+  #available;
 
   constructor(createInstance, options = {}) {
     const { size = 0, timeout = 0 } = options;
     this.#free = new Array(size).fill(true);
-    this.#current = 0;
     this.#timeout = timeout;
     this.#attachedTimeoutIDs = new WeakMap();
     this.#instances = new Array(size).fill(null);
@@ -20,22 +19,21 @@ class Pool {
     for (let index = 0; index < size; index++) {
       const instance = createInstance(this.#releaseInstance);
       this.#instances[index] = instance;
-      this.#queue.set(instance, { terminate: null, data: [] });
+      this.#queue.set(instance, { terminate: null, processes: [] });
     }
+    this.#available = size;
   }
   async #nextInstance() {
     if (!this.#instances.length) throw new Error('pool is empty');
-
-    const instance = this.#instances[this.#current];
-    const free = this.#free[this.#current];
-    this.#current = (this.#current + 1) % this.#instances.length;
-
-    if (!free) {
+    if (!this.#available) {
+      const index = Math.floor(Math.random() * this.#instances.length);
+      const instance = this.#instances[index];
       return new Promise((resolve) => {
-        this.#queue.get(instance).data.push(resolve);
+        this.#queue.get(instance).processes.push(resolve);
       });
     }
-
+    const index = this.#free.findIndex((isFree) => isFree);
+    const instance = this.#instances[index];
     return instance;
   }
   #findInstanceIndex(instance) {
@@ -47,13 +45,14 @@ class Pool {
     const index = this.#findInstanceIndex(instance);
     if (this.#free[index]) throw new Error('RoundRobin: release not captured');
     this.#clearTimeout(instance);
-    const { data, terminate } = this.#queue.get(instance);
-    if (data.length > 0) {
-      const resolve = data.shift();
+    const { processes, terminate } = this.#queue.get(instance);
+    if (processes.length > 0) {
+      const resolve = processes.shift();
       if (resolve) setTimeout(resolve, 0, instance);
       return;
     }
 
+    this.#available++;
     this.#free[index] = true;
 
     if (terminate) {
@@ -85,6 +84,7 @@ class Pool {
   #attachInstance(instance) {
     const index = this.#findInstanceIndex(instance);
     this.#free[index] = false;
+    this.#available--;
     const attachedTimeoutID = setTimeout(this.#exceeds, this.#timeout, instance);
     this.#attachedTimeoutIDs.set(instance, attachedTimeoutID);
   }

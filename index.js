@@ -5,7 +5,6 @@ const { createReadStream, createWriteStream } = require('node:fs');
 const { writeFile } = require('node:fs/promises');
 const readline = require('node:readline');
 const { finished } = require('node:stream/promises');
-const process = require('node:process');
 const Pool = require('./src/pool.js');
 const { threadFactory } = require('./src/thread.js');
 
@@ -42,7 +41,7 @@ const parse = async ({ inputPath, seperator = ',', headers = [] }, callback) => 
 
   const flush = flushFactory(callback, readable);
   const poolSize = os.cpus().length - 1; // Number of logical processors, - 1 main thread
-  const lb = new Pool(threadFactory({ headers, seperator }), { size: poolSize, timeout: 300 });
+  const lb = new Pool(threadFactory({ headers, seperator }), { size: poolSize, timeout: 200 });
   const bufferSize = 2000;
   let lines = [];
   let processes = [];
@@ -65,56 +64,68 @@ const parse = async ({ inputPath, seperator = ',', headers = [] }, callback) => 
   const data = await Promise.all(processes);
   flush(data);
   await lb.cleanup();
-  rl.on('close', async () => { closeStream(readable); });
+  readable.on('close', async () => { closeStream(readable); });
 };
 
+const toFileStream = (options, inputPath) =>
+  async (outputPath) => {
+    const writable = createWriteStream(outputPath);
+    writable.write('[');
+    let inProgress = false;
+    const callback = (json, readable) => {
+      const jsonStr = JSON.stringify(json);
+      if (!inProgress) writable.on('drain', () => { readable.resume(); });
+      writable.cork();
+      if (inProgress) writable.write(',');
+      const canWrite = writable.write(jsonStr);
+      if (!canWrite) readable.pause();
+      inProgress = true;
+      writable.uncork();
+    };
+    await parse({ inputPath, outputPath, ...options }, callback);
+    writable.write(']');
+    writable.on('close', () => closeStream(writable))
+  }
+
+const toFile = (options, inputPath) =>
+  async (outputPath) => {
+    const result = [];
+    const callback = (json) => { result.push(json) };
+    await parse({ inputPath, ...options }, callback);
+    await writeFile(outputPath, JSON.stringify(result, null, 2));
+  }
+
+const toJson = (options, inputPath) =>
+  async (callback) => {
+    await parse({ inputPath, ...options }, callback);
+  }
+
+const toJsonArray = (options, inputPath) =>
+  async () => {
+    const result = [];
+    const callback = (json) => { result.push(json) };
+    await parse({ inputPath, ...options }, callback);
+    return result;
+  }
 
 const init = (options = {}) => {
   return {
     parse: (inputPath) => ({
-      async toFileStream(outputPath) {
-        const writable = createWriteStream(outputPath);
-        writable.write('[');
-        let inProgress = false;
-        const callback = (json, readable) => {
-          const jsonStr = JSON.stringify(json);
-          if (!inProgress) writable.on('drain', () => { readable.resume(); });
-          writable.cork();
-          if (inProgress) writable.write(',');
-          const canWrite = writable.write(jsonStr);
-          if (!canWrite) readable.pause();
-          inProgress = true;
-          process.nextTick(() => writable.uncork());
-        };
-        await parse({ inputPath, outputPath, ...options }, callback);
-        writable.write(']');
-        writable.on('close', () => closeStream(writable))
-      },
-      async toFile(outputPath) {
-        const result = [];
-        const callback = (json) => { result.push(json) };
-        await parse({ inputPath, ...options }, callback);
-        await writeFile(outputPath, JSON.stringify(result, null, 2));
-      },
-      async toStream(callback) {
-        await parse({ inputPath, ...options }, callback);
-      },
-      async toJson() {
-        const result = [];
-        const callback = (json) => { result.push(json) };
-        await parse({ inputPath, ...options }, callback);
-        return result;
-      }
+      toFileStream: toFileStream(options, inputPath),
+      toFile: toFile(options, inputPath),
+      toJson: toJson(options, inputPath),
+      toJsonArray: toJsonArray(options, inputPath)
     })
   };
 }
 
 async function main() {
-  const resources = ['data/0.csv', 'data/customers-100.csv', 'data/customers-1000.csv', 'data/customers-10000.csv', 'data/customers-100000.csv', 'data/1.csv'];
+  const resources = ['data/0.csv', 'data/customers-100.csv', 'data/customers-1000.csv', 'data/customers-10000.csv', 'data/customers-100000.csv', 'data/1.csv', 'data/customers-2000000.csv'];
   const parser = init();
   // await parser.parse(resources[1]).toFile('copy.json');
-  // await parser.parse(resources[resources.length - 1]).toFile('copy.json');
-  await parser.parse(resources[resources.length - 2]).toFile('copy.json');
+  // await parser.parse(resources[resources.length-2]).toFile('copy.json');
+  // await parser.parse(resources[resources.length - 3]).toFile('copy.json');
+  await parser.parse(resources[resources.length - 1]).toFileStream('copy.json');
   // const data = await parser.parse(resources[resources.length - 1]).toJson('copy.json');
   // console.log("data: ", data.length);
 }

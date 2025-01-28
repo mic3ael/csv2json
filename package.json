@@ -13,5 +13,8 @@
   "dependencies": {
     "convert-csv-to-json": "^2.50.0",
     "csvtojson": "^2.0.10"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
   }
 }

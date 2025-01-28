@@ -30,11 +30,6 @@ class Thread {
       this.#reject = null;
 
     });
-    this.#worker.on('exit', (code) => {
-      if (code !== 0) {
-        console.error(`Worker ${this.#index} exited with code ${code}`);
-      }
-    });
   }
   get name() {
     return this.#index;
