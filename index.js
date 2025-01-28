@@ -86,7 +86,7 @@ const init = (options = {}) => {
           inProgress = true;
           process.nextTick(() => writable.uncork());
         };
-        await parse({ inputPath, outputPath, ...options }, callback)
+        await parse({ inputPath, outputPath, ...options }, callback);
         writable.write(']');
         writable.on('close', () => closeStream(writable))
       },

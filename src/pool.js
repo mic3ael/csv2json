@@ -46,8 +46,7 @@ class Pool {
   #releaseInstance = async (instance) => {
     const index = this.#findInstanceIndex(instance);
     if (this.#free[index]) throw new Error('RoundRobin: release not captured');
-    clearTimeout(this.#attachedTimeoutIDs.get(instance));
-    this.#attachedTimeoutIDs.delete(instance);
+    this.#clearTimeout(instance);
     const { data, terminate } = this.#queue.get(instance);
     if (data.length > 0) {
       const resolve = data.shift();
@@ -62,6 +61,10 @@ class Pool {
       setTimeout(terminate, 0);
     }
   };
+  #clearTimeout(instance) {
+    clearTimeout(this.#attachedTimeoutIDs.get(instance));
+    this.#attachedTimeoutIDs.delete(instance);
+  }
   #exceeds = (instance) => {
     console.log(`RoundRobin: time limit exceeded -> release instance ${instance.name}`);
     instance.cancel();
@@ -71,8 +74,7 @@ class Pool {
     const index = this.#findInstanceIndex(instance);
     if (this.#free[index]) {
       await instance.terminate();
-      clearTimeout(this.#attachedTimeoutIDs.get(instance));
-      this.#attachedTimeoutIDs.delete(instance);
+      this.#clearTimeout(instance);
       this.#free.slice(index, index);
       this.#instances.slice(index, index);
       this.#queue.delete(instance);
