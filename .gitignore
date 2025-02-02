@@ -4,3 +4,5 @@ copy*
 data/
 .git
 .DS_Store
+output/
+verify.js

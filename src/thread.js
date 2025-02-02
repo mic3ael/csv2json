@@ -1,6 +1,6 @@
 'use strict';
 
-const { Worker, workerData } = require('node:worker_threads');
+const { Worker } = require('node:worker_threads');
 const path = require('node:path');
 
 class Thread {
@@ -11,7 +11,7 @@ class Thread {
 
   constructor(i, params, releaseInstance) {
     this.#index = i;
-    const workerPath = `${__dirname}/worker.js`;
+    const workerPath = path.join(__dirname, 'worker.js');
     this.#worker = new Worker(workerPath, { workerData: { id: this.#index, params } });
     this.#init(releaseInstance);
   }
@@ -28,7 +28,6 @@ class Thread {
       if (this.#reject) setTimeout(this.#reject, 0, err);
       this.#resolve = null;
       this.#reject = null;
-
     });
   }
   get name() {
@@ -43,6 +42,11 @@ class Thread {
   }
   terminate() {
     return this.#worker.terminate();
+  }
+  cancel() {
+    setTimeout(this.#reject, 0);
+    this.#reject = null;
+    this.#resolve = null;
   }
 }
 

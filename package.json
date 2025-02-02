@@ -15,6 +15,7 @@
     "csvtojson": "^2.0.10"
   },
   "devDependencies": {
+    "stream-json": "^1.9.1",
     "typescript": "^5.7.3"
   }
 }
