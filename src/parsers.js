@@ -19,7 +19,8 @@ const closeStream = async (stream, callback = () => { }) => {
   }
 }
 
-const getHeader = (str, seperator) => str.replace(/["']/g, "").split(seperator).map(h => h.split(' ').join(''));
+const normalizeHeader = (str, seperator) => str.replace(/["']/g, "").split(seperator)
+  .map(h => h.split(' ').join(''));
 
 const parse = async ({ inputPath, seperator = ',', headers = [] }, callback) => {
   const readable = createReadStream(inputPath);
@@ -28,7 +29,7 @@ const parse = async ({ inputPath, seperator = ',', headers = [] }, callback) => 
   if (headers.length === 0) {
     const { done, value } = await linesIterator.next();
     if (done) throw new Error('file is empty');
-    headers = getHeader(value, seperator);
+    headers = normalizeHeader(value, seperator);
   }
   const poolSize = os.cpus().length - 1; // Number of logical processors, - 1 main thread
   const lb = new Pool(threadFactory({ headers, seperator }), { size: poolSize, timeout: 200 });

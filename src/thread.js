@@ -8,7 +8,7 @@ class Thread {
   #index;
   #resolve;
   #reject;
-
+  #terminated = false;
   constructor(i, params, releaseInstance) {
     this.#index = i;
     const workerPath = path.join(__dirname, 'worker.js');
@@ -29,6 +29,14 @@ class Thread {
       this.#resolve = null;
       this.#reject = null;
     });
+    this.#worker.on('exit', (code) => {
+      if (code != 0 && this.#terminated === false) {
+        console.error('Something went wrong in the thread code: ', code);
+        if (this.#reject) setTimeout(this.#reject, 0, code);
+      }
+      this.#reject = null;
+      this.#resolve = null;
+    });
   }
   get name() {
     return this.#index;
@@ -41,6 +49,7 @@ class Thread {
     });
   }
   terminate() {
+    this.#terminated = true;
     return this.#worker.terminate();
   }
   cancel() {
