@@ -5,7 +5,7 @@ const StringParser = require('./stringParser.js');
 const stateFactory = require('./state.js');
 
 const { headers, seperator } = workerData.params;
-const state = stateFactory(headers, seperator)
+const state = stateFactory(headers, seperator);
 const stringParser = new StringParser(state);
 
 parentPort.on('message', ({ strs }) => {
