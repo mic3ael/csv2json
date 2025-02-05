@@ -1,25 +1,28 @@
 'use strict';
 const path = require('node:path');
+const fs = require('node:fs');
 const parsers = require('./src/parsers.js');
+const transform = require('./src/transform.js');
 
-const init = (options = {}) => {
+const init = ({ headers = [], seperator = ',' } = {}) => {
   return {
     parse: (inputPath) => {
       const actions = {};
       for (let [name, func] of Object.entries(parsers))
-        actions[name] = func(options, inputPath);
+        actions[name] = func({ headers, seperator }, inputPath);
       return actions;
-    }
+    },
+    transform: () => transform({ headers, seperator })
   };
 }
 
 async function main() {
   const parser = init();
   // await parser.parse(resources[1]).toFileStream('copy.json');
-  // await parser.parse(resources[resources.length - 2]).toFile('copy.json');
+  // await parser.parse(`data/customers-2000000.csv`).toFile('output/copy.json');
   // await parser.parse(`data/customers-100000.csv`).toFileStream('output/copy.json');
   // await parser.parse(resources[2]).toFileStream('copy.json');
-  await parser.parse(`data/customers-2000000.csv`).toFileStream('output/copy.json');
+  // await parser.parse(`data/customers-2000000.csv`).toFileStream('output/copy.json');
   // const data = await parser.parse(resources[resources.length - 1]).toJson('copy.json');
   // console.log("data: ", data.length);
 
@@ -31,6 +34,17 @@ async function main() {
   //     path.join(__dirname, 'output', `${resource}.json`)
   //   );
   // }
+
+  // transform
+  // const readStream = fs.createReadStream('data/customers-2000000.csv');
+  const readStream = fs.createReadStream('data/customers-100000.csv');
+  const writeStream = fs.createWriteStream('output/copy.json');
+  readStream
+    .pipe(parser.transform())
+    .pipe(writeStream)
+    .on('finish', () => {
+      console.log('Done');
+    });
 }
 
 main();

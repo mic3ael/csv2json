@@ -7,6 +7,7 @@ const readline = require('node:readline');
 const { finished } = require('node:stream/promises');
 const Pool = require('./pool.js');
 const { threadFactory } = require('./thread.js');
+const { normalizeHeader } = require('./utils.js');
 
 const closeStream = async (stream, callback = () => { }) => {
   try {
@@ -19,10 +20,7 @@ const closeStream = async (stream, callback = () => { }) => {
   }
 }
 
-const normalizeHeader = (str, seperator) => str.replace(/["']/g, "").split(seperator)
-  .map(h => h.split(' ').join(''));
-
-const parse = async ({ inputPath, seperator = ',', headers = [] }, callback) => {
+const parse = async ({ inputPath, headers, seperator }, callback) => {
   const readable = createReadStream(inputPath);
   const rl = readline.createInterface(readable);
   const linesIterator = rl[Symbol.asyncIterator]();
@@ -102,6 +100,9 @@ const toJsonArray = (options, inputPath) =>
     await parse({ inputPath, ...options }, callback);
     return result;
   }
+
+
+
 
 module.exports = {
   toFileStream,
