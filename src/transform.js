@@ -16,6 +16,8 @@ const transform = ({ seperator, headers }) => {
   const bufferSize = 2000;
   let processes = [];
   let rest = '';
+  let currentChunk = [];
+  let isInit = true;
 
   return new Transform({
     async transform(chunk, _, done) {
@@ -28,31 +30,41 @@ const transform = ({ seperator, headers }) => {
       if (text.charAt(text.length - 1) === '\n') rest = lines.pop();
 
       const result = [];
-      let currentChunk = [];
+      const callback = [done];
       for (let line of lines) {
         if (!line.length) continue;
         currentChunk.push(line);
         if (currentChunk.length === bufferSize) {
           const instance = await lb.getInstance();
-          processes.push(instance.do(lines));
+          processes.push(instance.do(currentChunk));
           currentChunk = [];
           if (processes.length === poolSize) {
             const data = await Promise.all(processes);
             result.push(...data.flat());
             processes = [];
+            const finish = callback.pop();
+            const str = JSON.stringify(result, null, 2);
+            const sliceIdx = [1, -1];
+            if (isInit) sliceIdx[0] = 0;
+            if (finish) {
+              isInit = false;
+              finish(null, str.slice(...sliceIdx));
+            }
           }
         }
       }
+      const finish = callback.pop();
+      if (finish) finish();
+    },
+    async flush(done) {
       const instance = await lb.getInstance();
       processes.push(instance.do(currentChunk));
       const data = await Promise.all(processes);
-      result.push(data.flat());
-      processes = [];
-      done(null, JSON.stringify(result));
-    },
-    async flush(done) {
       await lb.cleanup();
-      done();
+      const str = JSON.stringify(data.flat(), null, 2);
+      const sliceIdx = [1];
+      if (isInit) sliceIdx[0] = 0;
+      done(null, str.slice(...sliceIdx));
     }
   });
 };
