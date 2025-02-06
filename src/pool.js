@@ -23,6 +23,9 @@ class Pool {
     }
     this.#available = size;
   }
+  get size() {
+    return this.#instances.length;
+  }
   async #nextInstance() {
     if (!this.#instances.length) throw new Error('pool is empty');
     if (!this.#available) {

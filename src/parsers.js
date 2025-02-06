@@ -7,7 +7,7 @@ const readline = require('node:readline');
 const { finished } = require('node:stream/promises');
 const Pool = require('./pool.js');
 const { threadFactory } = require('./thread.js');
-const { normalizeHeader } = require('./utils.js');
+const { normalizeHeader, aggregator } = require('./utils.js');
 
 const closeStream = async (stream, callback = () => { }) => {
   try {
@@ -24,7 +24,7 @@ const parse = async ({ inputPath, headers, seperator }, callback) => {
   const readable = createReadStream(inputPath);
   const rl = readline.createInterface(readable);
   const linesIterator = rl[Symbol.asyncIterator]();
-  if (headers.length === 0) {
+  if (!headers.length) {
     const { done, value } = await linesIterator.next();
     if (done) throw new Error('file is empty');
     headers = normalizeHeader(value, seperator);
@@ -32,26 +32,15 @@ const parse = async ({ inputPath, headers, seperator }, callback) => {
   const poolSize = os.cpus().length - 1; // Number of logical processors, - 1 main thread
   const lb = new Pool(threadFactory({ headers, seperator }), { size: poolSize, timeout: 200 });
   const bufferSize = 2000;
-  let lines = [];
-  let processes = [];
-  for await (const line of linesIterator) {
-    if (!line.length) continue;
-    lines.push(line);
-    if (lines.length === bufferSize) {
-      const instance = await lb.getInstance();
-      processes.push(instance.do(lines));
-      lines = [];
-      if (processes.length === poolSize) {
-        const data = await Promise.all(processes);
-        callback(data.flat(), readable);
-        processes = [];
-      }
-    }
+  const processesAggregator = aggregator(lb, bufferSize);
+  let data = []
+  for await (let line of linesIterator) {
+    const result = await processesAggregator.exec(line);
+    if (!result) continue;
+    data = data.concat(result);
   }
-  const instance = await lb.getInstance();
-  processes.push(instance.do(lines));
-  const data = await Promise.all(processes);
-  callback(data.flat(), readable);
+  const result = await processesAggregator.flush();
+  callback(data.concat(result), readable);
   await lb.cleanup();
   readable.on('close', async () => { closeStream(readable); });
 };
@@ -67,9 +56,9 @@ const toFileStream = (options, inputPath) =>
       writable.cork();
       if (inProgress) writable.write(',');
       writable.write('\n');
-      const buffArr = v8.serialize(jsonArray);
-      const buff = buffArr.slice(1, -1);
-      const canWrite = writable.write(buff);
+      // const buffArr = v8.serialize(jsonArray);
+      // const buff = buffArr.slice(1, -1);
+      const canWrite = writable.write(JSON.stringify(jsonArray).slice(1, -1));
       if (!canWrite) readable.pause();
       inProgress = true;
       writable.uncork();

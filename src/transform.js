@@ -5,20 +5,20 @@ const os = require('node:os');
 const v8 = require('node:v8');
 const Pool = require('./pool.js');
 const { threadFactory } = require('./thread.js');
-const { normalizeHeader } = require('./utils.js');
-
+const { normalizeHeader, aggregator } = require('./utils.js');
 
 const transform = ({ seperator, headers }) => {
   const poolSize = os.cpus().length - 1; // Number of logical processors, - 1 main thread
   let lb = null;
-  if (headers.length)
-    lb = new Pool(threadFactory({ headers, seperator }), { size: poolSize, timeout: 200 });
+  let processesAggregator = null;
   const bufferSize = 2000;
-  let processes = [];
+  if (headers.length) {
+    lb = new Pool(threadFactory({ headers, seperator }), { size: poolSize, timeout: 200 });
+    processesAggregator = aggregator(lb, bufferSize);
+  }
   let rest = '';
-  let currentChunk = [];
   let isInit = true;
-
+  const callbacks = [];
   return new Transform({
     async transform(chunk, _, done) {
       const text = rest + chunk.toString();
@@ -26,44 +26,33 @@ const transform = ({ seperator, headers }) => {
       if (!lb) {
         headers = normalizeHeader(lines.shift(), seperator);
         lb = new Pool(threadFactory({ headers, seperator }), { size: poolSize, timeout: 200 });
+        processesAggregator = aggregator(lb, bufferSize);
       }
       if (text.charAt(text.length - 1) === '\n') rest = lines.pop();
-
-      const result = [];
-      const callback = [done];
-      for (let line of lines) {
-        if (!line.length) continue;
-        currentChunk.push(line);
-        if (currentChunk.length === bufferSize) {
-          const instance = await lb.getInstance();
-          processes.push(instance.do(currentChunk));
-          currentChunk = [];
-          if (processes.length === poolSize) {
-            const data = await Promise.all(processes);
-            result.push(...data.flat());
-            processes = [];
-            const finish = callback.pop();
-            const str = JSON.stringify(result, null, 2);
-            const sliceIdx = [1, -1];
-            if (isInit) sliceIdx[0] = 0;
-            if (finish) {
-              isInit = false;
-              finish(null, str.slice(...sliceIdx));
-            }
-          }
-        }
+      callbacks.push(done);
+      console.log("len: ", lines.length);
+      for (let i = 0; i < lines.length; i++) {
+        console.log(`${i}: ${lines[i]}`);
+        const jsonArr = await processesAggregator.exec(lines[i]);
+        if (!jsonArr) {
+          callbacks.shift()()
+          return;
+        };
+        const str = JSON.stringify(jsonArr, null, 2);
+        const sliceIdx = [1, -1];
+        if (isInit) sliceIdx[0] = 0;
+        isInit = false;
+        callbacks.shift()(null, str.slice(...sliceIdx));
       }
-      const finish = callback.pop();
-      if (finish) finish();
+      while (callbacks.shift()());
     },
     async flush(done) {
-      const instance = await lb.getInstance();
-      processes.push(instance.do(currentChunk));
-      const data = await Promise.all(processes);
-      await lb.cleanup();
-      const str = JSON.stringify(data.flat(), null, 2);
+      const jsonArr = await processesAggregator.flush();
+      if (!jsonArr) return done();
+      const str = JSON.stringify(jsonArr, null, 2);
       const sliceIdx = [1];
       if (isInit) sliceIdx[0] = 0;
+      await lb.cleanup();
       done(null, str.slice(...sliceIdx));
     }
   });
