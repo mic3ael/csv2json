@@ -37,7 +37,7 @@ async function main() {
 
   // transform
   // const readStream = fs.createReadStream('data/customers-2000000.csv');
-  const readStream = fs.createReadStream('data/customers-1000.csv');
+  const readStream = fs.createReadStream('data/customers-100000.csv');
   const writeStream = fs.createWriteStream('output/copy.json');
   readStream
     .pipe(parser.transform())

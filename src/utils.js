@@ -10,7 +10,6 @@ const aggregator = (pool, bufferSize) => {
   return {
     async exec(line) {
       currentChunk.push(line);
-      console.log(currentChunk.length);
       if (currentChunk.length === bufferSize) {
         const instance = await pool.getInstance();
         processes.push(instance.do(currentChunk));
@@ -32,7 +31,6 @@ const aggregator = (pool, bufferSize) => {
       const instance = await pool.getInstance();
       processes.push(instance.do(currentChunk));
       const result = await Promise.all(processes);
-      console.log(result);
       data.push(...result.flat());
       return data;
     }

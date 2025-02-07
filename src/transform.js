@@ -18,7 +18,6 @@ const transform = ({ seperator, headers }) => {
   }
   let rest = '';
   let isInit = true;
-  const callbacks = [];
   return new Transform({
     async transform(chunk, _, done) {
       const text = rest + chunk.toString();
@@ -29,22 +28,18 @@ const transform = ({ seperator, headers }) => {
         processesAggregator = aggregator(lb, bufferSize);
       }
       if (text.charAt(text.length - 1) === '\n') rest = lines.pop();
-      callbacks.push(done);
-      console.log("len: ", lines.length);
       for (let i = 0; i < lines.length; i++) {
-        console.log(`${i}: ${lines[i]}`);
-        const jsonArr = await processesAggregator.exec(lines[i]);
-        if (!jsonArr) {
-          callbacks.shift()()
-          return;
-        };
+        const line = lines[i];
+        const jsonArr = await processesAggregator.exec(line);
+        if (!jsonArr) continue;
         const str = JSON.stringify(jsonArr, null, 2);
         const sliceIdx = [1, -1];
         if (isInit) sliceIdx[0] = 0;
         isInit = false;
-        callbacks.shift()(null, str.slice(...sliceIdx));
+        done(null, str.slice(...sliceIdx));
+        done = null;
       }
-      while (callbacks.shift()());
+      if (done) done();
     },
     async flush(done) {
       const jsonArr = await processesAggregator.flush();
