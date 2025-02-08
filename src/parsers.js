@@ -37,14 +37,13 @@ const parse = async ({ inputPath, headers, seperator }, callback) => {
   for await (let line of linesIterator) {
     const result = await processesAggregator.exec(line);
     if (!result) continue;
-    data = data.concat(result);
+    data = data.concat(result.flat());
   }
   const result = await processesAggregator.flush();
-  callback(data.concat(result), readable);
+  callback(data.concat(result.flat()), readable);
   await lb.cleanup();
   readable.on('close', async () => { closeStream(readable); });
 };
-
 
 const toFileStream = (options, inputPath) =>
   async (outputPath) => {
@@ -56,8 +55,6 @@ const toFileStream = (options, inputPath) =>
       writable.cork();
       if (inProgress) writable.write(',');
       writable.write('\n');
-      // const buffArr = v8.serialize(jsonArray);
-      // const buff = buffArr.slice(1, -1);
       const canWrite = writable.write(JSON.stringify(jsonArray).slice(1, -1));
       if (!canWrite) readable.pause();
       inProgress = true;
@@ -70,11 +67,10 @@ const toFileStream = (options, inputPath) =>
 
 const toFile = (options, inputPath) =>
   async (outputPath) => {
-    const result = [];
-    const callback = (jsonArray) => { result.push(...jsonArray) };
+    let result = [];
+    const callback = (jsonArray) => result = result.concat(jsonArray);
     await parse({ inputPath, ...options }, callback);
-    const buff = v8.serialize(result);
-    await writeFile(outputPath, buff);
+    await writeFile(outputPath, JSON.stringify(result, null, 2));
   }
 
 const toJson = (options, inputPath) =>

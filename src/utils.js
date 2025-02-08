@@ -16,7 +16,7 @@ const aggregator = (pool, bufferSize) => {
         currentChunk = [];
         if (processes.length === pool.size) {
           const result = await Promise.all(processes);
-          data.push(...result.flat());
+          data.push(result.flat());
           processes = [];
         }
       }
@@ -31,7 +31,7 @@ const aggregator = (pool, bufferSize) => {
       const instance = await pool.getInstance();
       processes.push(instance.do(currentChunk));
       const result = await Promise.all(processes);
-      data.push(...result.flat());
+      data.push(result.flat());
       return data;
     }
   }

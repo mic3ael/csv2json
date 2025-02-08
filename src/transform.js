@@ -18,6 +18,15 @@ const transform = ({ seperator, headers }) => {
   }
   let rest = '';
   let isInit = true;
+
+  const complete = (result, done, isLast) => {
+    const str = JSON.stringify(result, null, 2);
+    // const str = v8.serialize(result);
+    const sliceIdx = isLast ? [1] : [1, -1];
+    if (isInit) sliceIdx[0] = 0;
+    isInit = false;
+    done(null, str.slice(...sliceIdx));
+  }
   return new Transform({
     async transform(chunk, _, done) {
       const text = rest + chunk.toString();
@@ -28,28 +37,21 @@ const transform = ({ seperator, headers }) => {
         processesAggregator = aggregator(lb, bufferSize);
       }
       if (text.charAt(text.length - 1) === '\n') rest = lines.pop();
+      let result = [];
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const jsonArr = await processesAggregator.exec(line);
         if (!jsonArr) continue;
-        const str = JSON.stringify(jsonArr, null, 2);
-        const sliceIdx = [1, -1];
-        if (isInit) sliceIdx[0] = 0;
-        isInit = false;
-        done(null, str.slice(...sliceIdx));
-        done = null;
+        result = result.concat(jsonArr);
       }
-      if (done) done();
+      complete(result, done);
     },
     async flush(done) {
       const jsonArr = await processesAggregator.flush();
       if (!jsonArr) return done();
-      const str = JSON.stringify(jsonArr, null, 2);
-      const sliceIdx = [1];
-      if (isInit) sliceIdx[0] = 0;
+      complete(jsonArr, done, true);
       await lb.cleanup();
-      done(null, str.slice(...sliceIdx));
-    }
+    },
   });
 };
 
