@@ -1,9 +1,8 @@
 'use strict';
-const path = require('node:path');
-const fs = require('node:fs');
+// const path = require('node:path');
+// const fs = require('node:fs');
 const parsers = require('./src/parsers.js');
 const transform = require('./src/transform.js');
-const v8 = require('node:v8');
 
 const init = ({ headers = [], seperator = ',' } = {}) => {
   return {

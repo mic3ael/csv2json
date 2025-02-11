@@ -1,15 +1,25 @@
+declare module 'largeCsvJson' {
+  import { Transform } from 'node:stream';
 
-declare type Options = {
-  seperator: string;
-  headers: string[];
+  interface InitOptions {
+    headers?: string[];
+    seperator?: string;
+  }
+
+  interface ParseActions {
+    toFileStream: (outputPath: string) => Promise<void>;
+    toFile: (outputPath: string) => Promise<void>;
+    toJson: (callback: (item: Record<string, unknown>) => void) => Promise<void>;
+    toJsonArray: () => Promise<Record<string, unknown>[]>;
+  }
+
+  interface InitResult {
+    parse: (inputPath: string) => ParseActions;
+    transform: () => Transform;
+  }
+
+  function init(options?: InitOptions): InitResult;
+
+  export = init;
 }
 
-declare const toFileStreamBody = (outputPath: string) => Promise<void>
-declare const toFileBody = (outputPath: string) => Promise<void>
-declare const toJsonBody = (callback: (json: Record<string, unknown>) => void) => Promise<void>
-declare const toJsonArrayBody = () => Promise<Record<string, unknown>[]>
-
-export declare const toFileStream = (options: Options, inputPath: string) => toFileStreamBody
-export declare const toFile = (options: Options, inputPath: string) => toFile;
-export declare const toJson = (options: Options, inputPath: string) => toJson;
-export declare const toJsonArray = (options: Options, inputPath: string) => toJsonArray;

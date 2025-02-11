@@ -37,8 +37,6 @@ const aggregator = (pool, bufferSize) => {
   }
 };
 
-
-
 module.exports = {
   normalizeHeader,
   aggregator

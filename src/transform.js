@@ -2,7 +2,6 @@
 
 const { Transform } = require('node:stream');
 const os = require('node:os');
-const v8 = require('node:v8');
 const Pool = require('./pool.js');
 const { threadFactory } = require('./thread.js');
 const { normalizeHeader, aggregator } = require('./utils.js');
@@ -21,7 +20,6 @@ const transform = ({ seperator, headers }) => {
 
   const complete = (result, done, isLast) => {
     const str = JSON.stringify(result, null, 2);
-    // const str = v8.serialize(result);
     const sliceIdx = isLast ? [1] : [1, -1];
     if (isInit) sliceIdx[0] = 0;
     isInit = false;

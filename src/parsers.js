@@ -1,5 +1,4 @@
 'use strict';
-const v8 = require('node:v8');
 const { writeFile } = require('node:fs/promises');
 const os = require('node:os');
 const { createReadStream, createWriteStream } = require('node:fs');
@@ -85,9 +84,6 @@ const toJsonArray = (options, inputPath) =>
     await parse({ inputPath, ...options }, callback);
     return result;
   }
-
-
-
 
 module.exports = {
   toFileStream,
