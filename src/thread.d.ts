@@ -1,21 +1,20 @@
-declare module 'Thread' {
+declare module 'csv2json/src/thread' {
+  interface ThreadParams {
+    // Define the params used by the thread
+  }
+
   class Thread {
-    constructor(i: number, params: Record<string, unknown>, releaseInstance: (thread: Thread) => Promise<void>);
-
-    get name(): number;
-
-    do(strs: string[]): Promise<unknown[]>;
-
-    terminate(): Promise<number>;
-
+    constructor(i: number, params: ThreadParams, releaseInstance: (instance: Thread) => Promise<void>);
+    name: number;
+    do(strs: string[]): Promise<any>;
+    terminate(): Promise<void>;
     cancel(): void;
   }
 
-  type ReleaseInstanceFunction = (thread: Thread) => Promise<void>;
-  type CreateThreadFunction = (releaseInstance: ReleaseInstanceFunction) => Thread;
+  function threadFactory(params: ThreadParams): () => (releaseInstance: (instance: Thread) => Promise<void>) => Thread;
 
-  function threadFactory(params: Record<string, unknown>): CreateThreadFunction;
-
-  export { Thread, threadFactory };
+  export {
+    Thread,
+    threadFactory
+  };
 }
-

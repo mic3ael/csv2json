@@ -53,7 +53,8 @@ class Thread {
     return this.#worker.terminate();
   }
   cancel() {
-    setTimeout(this.#reject, 0);
+    if (this.#reject)
+      setTimeout(this.#reject, 0);
     this.#reject = null;
     this.#resolve = null;
   }

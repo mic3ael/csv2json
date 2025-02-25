@@ -1,14 +1,16 @@
-declare module 'utils' {
-  import { Pool } from './pool';
-  function normalizeHeader(str: string, separator: string): string[];
+declare module 'csv2json/src/utils' {
+  function normalizeHeader(str: string, seperator: string): string[];
 
   interface Aggregator {
     exec(line: string): Promise<string[] | null>;
     flush(): Promise<string[]>;
   }
 
-  function aggregator(pool: Pool, bufferSize: number): Aggregator;
+  function aggregator(pool: any, bufferSize: number): Aggregator;
 
-  export { normalizeHeader, aggregator };
+  export {
+    normalizeHeader,
+    aggregator
+  };
 }
 

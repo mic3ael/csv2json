@@ -1,36 +1,25 @@
-declare module 'state' {
-  interface Step {
+declare module 'csv2json/src/state' {
+  interface Target {
     index: number;
     accumulator: string[];
-    result: Record<string, string>;
+    result: Record<string, any>;
     state: string;
   }
 
-  interface Action {
-    (target: Step, char?: string): Step;
-  }
-
-  interface Cases {
-    default: Action;
-    [key: string]: Action;
-  }
-
-  interface StateMachine {
-    start: {
-      default: () => Step;
+  function stateFactory(headers: string[], seperator: string): {
+    start: { default: () => Target };
+    end: { default: (target: Target) => Target };
+    close: { default: (target: Target) => Target };
+    value: {
+      default: (target: Target, char: string) => Target;
+      [seperator: string]: (target: Target) => Target;
+      '\"': (target: Target) => Target;
     };
-    end: {
-      default: Action;
+    text: {
+      '\"': (target: Target) => Target;
+      default: (target: Target, char: string) => Target;
     };
-    close: {
-      default: Action;
-    };
-    value: Cases;
-    [key: string]: Cases;
-  }
-
-  function stateFactory(headers: string[], separator: string): StateMachine;
+  };
 
   export = stateFactory;
 }
-

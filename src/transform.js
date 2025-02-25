@@ -12,7 +12,7 @@ const transform = ({ seperator, headers }) => {
   let processesAggregator = null;
   const bufferSize = 2000;
   if (headers.length) {
-    lb = new Pool(threadFactory({ headers, seperator }), { size: poolSize, timeout: 200 });
+    lb = new Pool(threadFactory({ headers, seperator }, poolSize), { size: poolSize, timeout: 200 });
     processesAggregator = aggregator(lb, bufferSize);
   }
   let rest = '';

@@ -9,7 +9,8 @@
     "skipLibCheck": true,
     "declaration": true,
     "baseUrl": ".",
-    "preserveWatchOutput": true
+    "preserveWatchOutput": true,
+    "rootDir": "./"
   },
   "include": [
     "*.d.ts",

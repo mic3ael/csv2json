@@ -1,24 +1,15 @@
-declare module 'largeCsvJson' {
-  import { Transform } from 'node:stream';
-
-  interface InitOptions {
+declare module 'csv2json' {
+  interface ParserOptions {
     headers?: string[];
     seperator?: string;
   }
 
-  interface ParseActions {
-    toFileStream: (outputPath: string) => Promise<void>;
-    toFile: (outputPath: string) => Promise<void>;
-    toJson: (callback: (item: Record<string, unknown>) => void) => Promise<void>;
-    toJsonArray: () => Promise<Record<string, unknown>[]>;
+  interface Parser {
+    parse(inputPath: string): Record<string, any>;
+    transform(): any;
   }
 
-  interface InitResult {
-    parse: (inputPath: string) => ParseActions;
-    transform: () => Transform;
-  }
-
-  function init(options?: InitOptions): InitResult;
+  function init(options?: ParserOptions): Parser;
 
   export = init;
 }

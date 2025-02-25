@@ -1,13 +1,12 @@
-declare module 'transform' {
-  import { Transform } from 'node:stream';
-
+declare module 'csv2json/src/transform' {
   interface TransformOptions {
     seperator: string;
     headers: string[];
   }
 
-  const transform: (options: TransformOptions) => Transform;
+  function transform(options: TransformOptions): Transform;
 
   export = transform;
 }
+
 

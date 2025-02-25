@@ -1,24 +1,13 @@
-declare module 'Pool' {
+declare module 'csv2json/src/pool' {
   interface PoolOptions {
     size?: number;
     timeout?: number;
   }
 
-  interface Instance {
-    name: string;
-    cancel: () => void;
-    terminate: () => Promise<void>;
-  }
-
-  type CreateInstanceFunction = (releaseInstance: (instance: Instance) => Promise<void>) => Instance;
-
   class Pool {
-    constructor(createInstance: CreateInstanceFunction, options?: PoolOptions);
-
-    get size(): number;
-
-    getInstance(): Promise<Instance | null>;
-
+    constructor(createInstance: (releaseInstance: (instance: any) => Promise<void>) => any, options?: PoolOptions);
+    size: number;
+    getInstance(): Promise<any>;
     cleanup(): Promise<void>;
   }
 
