@@ -6,7 +6,7 @@ const Pool = require('./pool.js');
 const { threadFactory } = require('./thread.js');
 const { normalizeHeader, aggregator } = require('./utils.js');
 
-const transform = ({ seperator = ',', headers = [] } = {}) => {
+const transform = ({ seperator, headers }) => {
   const poolSize = os.cpus().length - 1; // Number of logical processors, - 1 main thread
   let lb = null;
   let processesAggregator = null;

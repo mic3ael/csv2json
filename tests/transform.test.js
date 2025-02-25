@@ -17,7 +17,8 @@ describe('transform', () => {
   it('transform processes chunks correctly', async () => {
     const inputPath = path.resolve(__dirname, 'test.csv');
     const readStream = fs.createReadStream(inputPath);
-    const stream = transform();
+    const options = { seperator: ',', headers: [] };
+    const stream = transform(options);
     let data = '';
     await new Promise((resolve) => {
       readStream
