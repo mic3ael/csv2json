@@ -6,7 +6,7 @@ const Pool = require('./pool.js');
 const { threadFactory } = require('./thread.js');
 const { normalizeHeader, aggregator } = require('./utils.js');
 
-const transform = ({ seperator, headers }) => {
+const transform = ({ seperator = ',', headers = [] } = {}) => {
   const poolSize = os.cpus().length - 1; // Number of logical processors, - 1 main thread
   let lb = null;
   let processesAggregator = null;
@@ -40,15 +40,15 @@ const transform = ({ seperator, headers }) => {
         const line = lines[i];
         const jsonArr = await processesAggregator.exec(line);
         if (!jsonArr) continue;
-        result = result.concat(jsonArr);
+        result.push(...jsonArr);
       }
       complete(result, done);
     },
     async flush(done) {
       const jsonArr = await processesAggregator.flush();
       if (!jsonArr) return done();
-      complete(jsonArr, done, true);
       await lb.cleanup();
+      complete(jsonArr.flat(), done, true);
     },
   });
 };
