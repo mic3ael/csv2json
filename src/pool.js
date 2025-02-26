@@ -41,12 +41,12 @@ class Pool {
   }
   #findInstanceIndex(instance) {
     const index = this.#instances.indexOf(instance);
-    if (index < 0) throw new Error('RoundRobin: release unexpected instance');
+    if (index < 0) throw new Error('release unexpected instance');
     return index;
   }
   #releaseInstance = async (instance) => {
     const index = this.#findInstanceIndex(instance);
-    if (this.#free[index]) throw new Error('RoundRobin: release not captured');
+    if (this.#free[index]) throw new Error('release not captured');
     this.#clearTimeout(instance);
     const { processes, terminate } = this.#queue.get(instance);
     if (processes.length > 0) {
@@ -68,7 +68,7 @@ class Pool {
     this.#attachedTimeoutIDs.delete(instance);
   }
   #exceeds = (instance) => {
-    console.log(`RoundRobin: time limit exceeded -> release instance ${instance.name}`);
+    console.log(`time limit exceeded -> release instance ${instance.name}`);
     instance.cancel();
     this.#releaseInstance(instance);
   };
@@ -77,8 +77,8 @@ class Pool {
     if (this.#free[index]) {
       await instance.terminate();
       this.#clearTimeout(instance);
-      this.#free.slice(index, index);
-      this.#instances.slice(index, index);
+      this.#free[index] = false;
+      this.#instances[index] = null;
       this.#queue.delete(instance);
     } else {
       return new Promise((resolve) => { this.#queue.get(instance).terminate = resolve; });

@@ -51,11 +51,12 @@ const transform = ({ seperator, headers }) => {
     async flush(done) {
       try {
         const jsonArr = await processesAggregator.flush(); // Get remaining results
-        if (lb) await lb.cleanup();
         if (jsonArr) complete(jsonArr.flat(), done, true); // Finalize and close stream
         else done(); // Signal that flush is complete
       } catch (err) {
         done(err); // Handle any errors during flush
+      } finally {
+        if (lb) await lb.cleanup();
       }
     },
   });
