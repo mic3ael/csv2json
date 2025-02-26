@@ -1,8 +1,10 @@
 const assert = require('assert');
 const { describe, it } = require('node:test');
 const fs = require('node:fs');
+const { once } = require('node:events');
 const transform = require('../src/transform.js');
 const { Transform } = require('node:stream');
+const { finished } = require('node:stream/promises');
 const path = require('node:path');
 const jsonArr = require('./test.json');
 
@@ -20,17 +22,13 @@ describe('transform', () => {
     const options = { seperator: ',', headers: [] };
     const stream = transform(options);
     let data = '';
-    await new Promise((resolve) => {
-      readStream
-        .pipe(stream)
-        .on('data', (chunk) => {
-          data += chunk.toString();
-        })
-        .on('end', () => {
-          resolve();
-        });
-    });
+    const sp = readStream
+      .pipe(stream)
+      .on('data', (chunk) => {
+        data += chunk.toString();
+      });
+    await once(sp, 'close');
     assert.deepEqual(JSON.parse(data), jsonArr);
-    stream.destroy();
+    await Promise.all([finished(stream), finished(sp), finished(readStream)]);
   });
 });

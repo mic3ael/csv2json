@@ -27,28 +27,36 @@ const transform = ({ seperator, headers }) => {
   }
   return new Transform({
     async transform(chunk, _, done) {
-      const text = rest + chunk.toString();
-      const lines = text.split(/\r?\n/);
-      if (!lb) {
-        headers = normalizeHeader(lines.shift(), seperator);
-        lb = new Pool(threadFactory({ headers, seperator }), { size: poolSize, timeout: 200 });
-        processesAggregator = aggregator(lb, bufferSize);
+      try {
+        const text = rest + chunk.toString();
+        const lines = text.split(/\r?\n/);
+        if (!lb) {
+          headers = normalizeHeader(lines.shift(), seperator);
+          lb = new Pool(threadFactory({ headers, seperator }), { size: poolSize, timeout: 200 });
+          processesAggregator = aggregator(lb, bufferSize);
+        }
+        if (text.charAt(text.length - 1) === '\n') rest = lines.pop();
+        let result = [];
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const jsonArr = await processesAggregator.exec(line);
+          if (!jsonArr) continue;
+          result.push(...jsonArr);
+        }
+        complete(result, done);
+      } catch (err) {
+        done(err);
       }
-      if (text.charAt(text.length - 1) === '\n') rest = lines.pop();
-      let result = [];
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const jsonArr = await processesAggregator.exec(line);
-        if (!jsonArr) continue;
-        result.push(...jsonArr);
-      }
-      complete(result, done);
     },
     async flush(done) {
-      const jsonArr = await processesAggregator.flush();
-      if (!jsonArr) return done();
-      await lb.cleanup();
-      complete(jsonArr.flat(), done, true);
+      try {
+        const jsonArr = await processesAggregator.flush(); // Get remaining results
+        if (lb) await lb.cleanup();
+        if (jsonArr) complete(jsonArr.flat(), done, true); // Finalize and close stream
+        else done(); // Signal that flush is complete
+      } catch (err) {
+        done(err); // Handle any errors during flush
+      }
     },
   });
 };

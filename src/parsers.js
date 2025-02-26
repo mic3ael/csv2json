@@ -1,5 +1,6 @@
 'use strict';
 const { writeFile } = require('node:fs/promises');
+const { once } = require('node:events');
 const os = require('node:os');
 const { createReadStream, createWriteStream } = require('node:fs');
 const readline = require('node:readline');
@@ -7,17 +8,7 @@ const { finished } = require('node:stream/promises');
 const Pool = require('./pool.js');
 const { threadFactory } = require('./thread.js');
 const { normalizeHeader, aggregator } = require('./utils.js');
-
-const closeStream = async (stream, callback = () => { }) => {
-  try {
-    await finished(stream);
-  } catch (err) {
-    stream.destroy();
-  } finally {
-    console.log('Stream was closed');
-    callback();
-  }
-}
+const v8 = require('node:v8');
 
 const parse = async ({ inputPath, headers, seperator }, callback) => {
   const readable = createReadStream(inputPath);
@@ -32,16 +23,15 @@ const parse = async ({ inputPath, headers, seperator }, callback) => {
   const lb = new Pool(threadFactory({ headers, seperator }), { size: poolSize, timeout: 200 });
   const bufferSize = 2000;
   const processesAggregator = aggregator(lb, bufferSize);
-  let data = []
   for await (let line of linesIterator) {
     const result = await processesAggregator.exec(line);
     if (!result) continue;
-    data = data.concat(result.flat());
+    callback(result.flat(), readable)
   }
+  await once(readable, 'close');
   const result = await processesAggregator.flush();
-  callback(data.concat(result.flat()), readable);
-  await lb.cleanup();
-  readable.on('close', async () => { closeStream(readable); });
+  callback(result.flat(), readable);
+  await Promise.all([lb.cleanup(), finished(readable)]);
 };
 
 const toFileStream = (options, inputPath) =>
@@ -50,18 +40,22 @@ const toFileStream = (options, inputPath) =>
     writable.write('[');
     let inProgress = false;
     const callback = (jsonArray, readable) => {
-      writable.once('drain', () => { readable.resume(); });
+      writable.once('drain', () => {
+        readable.resume();
+      });
       writable.cork();
       if (inProgress) writable.write(',');
       writable.write('\n');
-      const canWrite = writable.write(JSON.stringify(jsonArray).slice(1, -1));
+      const str = JSON.stringify(jsonArray).slice(1, -1);
+      const canWrite = writable.write(str);
       if (!canWrite) readable.pause();
       inProgress = true;
       writable.uncork();
     };
     await parse({ inputPath, outputPath, ...options }, callback);
-    writable.write('\n]');
-    writable.on('close', () => closeStream(writable));
+    writable.end('\n]');
+    await once(writable, 'close');
+    await finished(writable);
   }
 
 const toFile = (options, inputPath) =>
