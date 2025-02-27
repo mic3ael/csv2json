@@ -7,6 +7,7 @@ class Pool {
   #queue;
   #attachedTimeoutIDs;
   #available;
+  #createInstance;
 
   constructor(createInstance, options = {}) {
     const { size = 0, timeout = 0 } = options;
@@ -15,16 +16,28 @@ class Pool {
     this.#attachedTimeoutIDs = new WeakMap();
     this.#instances = new Array(size).fill(null);
     this.#queue = new Map();
-
+    this.#createInstance = createInstance;
     for (let index = 0; index < size; index++) {
-      const instance = createInstance(this.#releaseInstance);
-      this.#instances[index] = instance;
-      this.#queue.set(instance, { terminate: null, processes: [] });
+      this.#addInstance(index);
     }
     this.#available = size;
   }
   get size() {
     return this.#instances.length;
+  }
+  #addInstance(index) {
+    let waitList = [];
+    let close = null;
+    if (this.#instances[index]) {
+      const { close: currentClose, waitList: currentWaitList } = this.#queue.get(this.#instances[index]);
+      if (currentClose && !currentWaitList.length) return;
+      waitList = currentWaitList;
+      close = currentClose;
+    }
+
+    const instance = this.#createInstance(this.#releaseInstance);
+    this.#instances[index] = instance;
+    this.#queue.set(instance, { close, waitList });
   }
   async #nextInstance() {
     if (!this.#instances.length) throw new Error('pool is empty');
@@ -32,7 +45,7 @@ class Pool {
       const index = Math.floor(Math.random() * this.#instances.length);
       const instance = this.#instances[index];
       return new Promise((resolve) => {
-        this.#queue.get(instance).processes.push(resolve);
+        this.#queue.get(instance).waitList.push(resolve);
       });
     }
     const index = this.#free.findIndex((isFree) => isFree);
@@ -48,9 +61,9 @@ class Pool {
     const index = this.#findInstanceIndex(instance);
     if (this.#free[index]) throw new Error('release not captured');
     this.#clearTimeout(instance);
-    const { processes, terminate } = this.#queue.get(instance);
-    if (processes.length > 0) {
-      const resolve = processes.shift();
+    const { waitList, close } = this.#queue.get(instance);
+    if (waitList.length > 0) {
+      const resolve = waitList.shift();
       if (resolve) setTimeout(resolve, 0, instance);
       return;
     }
@@ -58,30 +71,31 @@ class Pool {
     this.#available++;
     this.#free[index] = true;
 
-    if (terminate) {
+    if (close) {
       await this.#deleteInstance(instance);
-      setTimeout(terminate, 0);
+      setTimeout(close, 0);
     }
   };
   #clearTimeout(instance) {
     clearTimeout(this.#attachedTimeoutIDs.get(instance));
     this.#attachedTimeoutIDs.delete(instance);
   }
-  #exceeds = (instance) => {
-    console.log(`time limit exceeded -> release instance ${instance.name}`);
-    instance.cancel();
-    this.#releaseInstance(instance);
+  #exceeds = async (instance) => {
+    console.log(`pool:exceeded -> time limit exceeded, release instance ${instance.name}`);
+    await instance.terminate();
+    const index = this.#findInstanceIndex(instance);
+    this.#addInstance(index);
   };
   async #deleteInstance(instance) {
     const index = this.#findInstanceIndex(instance);
     if (this.#free[index]) {
-      await instance.terminate();
+      await instance.close();
       this.#clearTimeout(instance);
       this.#free[index] = false;
       this.#instances[index] = null;
       this.#queue.delete(instance);
     } else {
-      return new Promise((resolve) => { this.#queue.get(instance).terminate = resolve; });
+      return new Promise((resolve) => { this.#queue.get(instance).close = resolve; });
     }
   }
   #attachInstance(instance) {

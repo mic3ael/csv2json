@@ -8,7 +8,10 @@ const { headers, seperator } = workerData.params;
 const state = stateFactory(headers, seperator);
 const stringParser = new StringParser(state);
 
-parentPort.on('message', ({ strs }) => {
+parentPort.on('message', ({ strs, shutdown }) => {
+
+  if (shutdown) process.exit(0);
+
   const jsonArray = new Array(strs.length);
   for (let i = 0; i < strs.length; i++) {
     const str = strs[i];
