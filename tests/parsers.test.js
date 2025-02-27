@@ -31,25 +31,25 @@ describe('parsers', () => {
   })
 
   it('toFileStream writes JSON array to file', async () => {
-    // await toFileStream(options, inputPath)(outputPath);
+    await toFileStream(options, inputPath)(outputPath);
   });
 
   it('toFile writes JSON array to file', async () => {
-    // await toFile(options, inputPath)(outputPath);
+    await toFile(options, inputPath)(outputPath);
   });
 
   it('toJson calls callback with JSON object', async () => {
-    // let index = 0;
-    // const callback = (json) => {
-    //   assert.deepEqual(json, jsonArr[index]);
-    //   index++;
-    // };
-    // await toJson(options, inputPath)(callback);
+    let index = 0;
+    const callback = (json) => {
+      assert.deepEqual(json, jsonArr[index]);
+      index++;
+    };
+    await toJson(options, inputPath)(callback);
   });
 
   it('toJsonArray returns JSON array', async () => {
-    // const result = await toJsonArray(options, inputPath)();
-    // assert.deepEqual(result, jsonArr);
+    const result = await toJsonArray(options, inputPath)();
+    assert.deepEqual(result, jsonArr);
   });
 });
 

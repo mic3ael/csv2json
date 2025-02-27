@@ -24,10 +24,9 @@ describe('Thread', () => {
     await thread.terminate();
   });
 
-  it('cancel method cancels processing when the process still not started', async () => {
+  it('close method graceful shutdown the process', async () => {
     const thread = new Thread(0, params, releaseInstanceMock);
-    thread.cancel();
-    await thread.terminate();
+    await thread.close();
   });
 });
 

@@ -6,7 +6,7 @@ describe('Pool', () => {
   const createInstanceMock = (_releaseInstance) => ({
     name: 'instance',
     terminate: () => Promise.resolve(),
-    cancel: () => { }
+    close: () => { }
   });
   const options = { size: 2, timeout: 100 };
 

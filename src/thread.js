@@ -30,6 +30,10 @@ class Thread {
       if (!this.#isTerminated) await releaseInstance(this);
     });
     this.#worker.on('exit', async (code) => {
+      if (code === 0) {
+        const { resolve } = this.#promises.shift();
+        setTimeout(resolve, 0);
+      }
       console.log(`thread:init -> worker thread ${this.#index} was successfully terminated with code ${code}`);
     });
   }
