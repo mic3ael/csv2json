@@ -1,6 +1,6 @@
-const { PassThrough } = require('stream');
-const TransformStream = require('../src/transform.js'); // Import your TransformStream
-const assert = require('assert'); // Built-in Node.js assertion module
+const { PassThrough } = require('node:stream');
+const TransformStream = require('../src/transform.js');
+const assert = require('node:assert');
 
 // Test cases
 (async () => {
