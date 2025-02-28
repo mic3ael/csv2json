@@ -1,6 +1,6 @@
 const assert = require('assert');
 const { describe, it } = require('node:test');
-const stateFactory = require('../src/state');
+const stateFactory = require('../src/state.js');
 
 describe('stateFactory', () => {
   const headers = ['header1', 'header2'];

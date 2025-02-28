@@ -1,6 +1,6 @@
 const assert = require('assert');
 const { describe, it } = require('node:test');
-const { Thread, threadFactory } = require('../src/thread');
+const { Thread, threadFactory } = require('../src/thread.js');
 
 describe('Thread', () => {
   const releaseInstanceMock = async () => { };

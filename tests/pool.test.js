@@ -1,6 +1,6 @@
 const assert = require('assert');
 const { describe, it, beforeEach } = require('node:test');
-const Pool = require('../src/pool');
+const Pool = require('../src/pool.js');
 
 describe('Pool', () => {
   const createInstanceMock = (_releaseInstance) => ({

@@ -1,6 +1,6 @@
 const assert = require('assert');
 const { describe, it } = require('node:test');
-const StringParser = require('../src/stringParser');
+const StringParser = require('../src/stringParser.js');
 
 describe('StringParser', () => {
   const meta = {

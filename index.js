@@ -2,7 +2,7 @@
 // const path = require('node:path');
 const fs = require('node:fs');
 const parsers = require('./src/parsers.js');
-const transform = require('./src/transform.js');
+const TransformStream = require('./src/transform.js');
 
 const init = ({ headers = [], seperator = ',' } = {}) => {
   return {
@@ -12,7 +12,7 @@ const init = ({ headers = [], seperator = ',' } = {}) => {
         actions[name] = func({ headers, seperator }, inputPath);
       return actions;
     },
-    transform: () => transform({ headers, seperator })
+    transform: () => new TransformStream({ headers, seperator })
   };
 }
 
@@ -25,8 +25,8 @@ async function main() {
   // console.log("content: ", content);
   // await parser.parse(`data/customers-1000.csv`).toFileStream('output/copy.json');
   // await parser.parse(resources[2]).toFileStream('copy.json');
-  await parser.parse(`tests/test.csv`).toFileStream('output/copy.json');
-  await parser.parse(`data/customers-100000.csv`).toFileStream('output/copy.json');
+  // await parser.parse(`tests/test.csv`).toFileStream('output/copy.json');
+  // await parser.parse(`data/customers-100000.csv`).toFileStream('output/copy.json');
   // const data = await parser.parse(resources[resources.length - 1]).toJson('copy.json');
   // console.log("data: ", data.length);
 
@@ -41,15 +41,15 @@ async function main() {
 
   // transform
   // const readStream = fs.createReadStream('data/customers-2000000.csv');
-  // const readStream = fs.createReadStream('data/customers-100000.csv');
+  const readStream = fs.createReadStream('data/customers-100000.csv');
   // const readStream = fs.createReadStream('tests/test.csv');
-  // const writeStream = fs.createWriteStream('output/copy.json');
-  // readStream
-  //   .pipe(parser.transform())
-  //   .pipe(writeStream)
-  //   .on('finish', () => {
-  //     console.log('Done');
-  //   });
+  const writeStream = fs.createWriteStream('output/copy.json');
+  readStream
+    .pipe(parser.transform())
+    .pipe(writeStream)
+    .on('finish', () => {
+      console.log('Done');
+    });
 }
 
 main();

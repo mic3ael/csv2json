@@ -1,6 +1,6 @@
 const assert = require('assert');
 const { describe, it } = require('node:test');
-const { normalizeHeader, aggregator } = require('../src/utils');
+const { normalizeHeader, aggregator } = require('../src/utils.js');
 
 describe('normalizeHeader', () => {
   it('normalizes header', () => {
