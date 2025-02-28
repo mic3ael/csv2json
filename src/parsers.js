@@ -8,7 +8,6 @@ const { finished } = require('node:stream/promises');
 const Pool = require('./pool.js');
 const { threadFactory } = require('./thread.js');
 const { normalizeHeader, aggregator } = require('./utils.js');
-const v8 = require('node:v8');
 
 const parse = async ({ inputPath, headers, seperator }, callback) => {
   const readable = createReadStream(inputPath);
