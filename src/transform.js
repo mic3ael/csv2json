@@ -38,12 +38,12 @@ class TransformStream extends Transform {
     }
   }
 
-  #complete(result, done, isLast) {
-    const str = JSON.stringify(result, null, 2);
+  #normalizeResult(result, isLast = false) {
+    const str = JSON.stringify(result, null, 2).trim();
     const sliceIdx = isLast ? [1] : [1, -1];
     if (this.#isInit) sliceIdx[0] = 0;
     this.#isInit = false;
-    done(null, str.slice(...sliceIdx));
+    return str.slice(...sliceIdx);
   }
 
   async _transform(chunk, _, done) {
@@ -60,9 +60,11 @@ class TransformStream extends Transform {
         const line = lines[i];
         const jsonArr = await this.#processesAggregator.exec(line);
         if (!jsonArr) continue;
-        result.push(...jsonArr);
+        result.push(...jsonArr.flat());
       }
-      this.#complete(result, done);
+      if (!result.length) return done();
+      const normalizedResult = this.#normalizeResult(result);
+      done(null, normalizedResult);
     } catch (err) {
       done(err);
     }
@@ -72,8 +74,10 @@ class TransformStream extends Transform {
     try {
       if (!this.#processesAggregator) return done();
       const jsonArr = await this.#processesAggregator.flush(); // Get remaining results
-      if (jsonArr) this.#complete(jsonArr.flat(), done, true); // Finalize and close stream
-      else done(); // Signal that flush is complete
+      if (jsonArr) {
+        const normalizedResult = this.#normalizeResult(jsonArr.flat(), true);
+        return done(null, normalizedResult);// Finalize and close stream
+      } else done(); // Signal that flush is complete
     } catch (err) {
       done(err); // Handle any errors during flush
     } finally {

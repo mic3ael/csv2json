@@ -6,6 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node index.js",
+    "start:local": "node index2.js",
     "start:prof": "node --prof index.js",
     "other": "node test.js",
     "other2": "node test2.js"

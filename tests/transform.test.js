@@ -1,16 +1,16 @@
 const { PassThrough } = require('node:stream');
 const TransformStream = require('../src/transform.js');
+const { describe, test, after } = require('node:test');
 const assert = require('node:assert');
+const { once } = require('node:events');
 
-// Test cases
-(async () => {
-  try {
-    // Test 1: Transforming data
-    const options = {
-      seperator: ',',
-      headers: []
-    };
+describe('parsers', () => {
+  const options = {
+    seperator: ',',
+    headers: []
+  };
 
+  test('Transforming data', async () => {
     const transformStream = new TransformStream(options);
     const inputStream = new PassThrough();
     const outputStream = new PassThrough();
@@ -35,8 +35,9 @@ const assert = require('node:assert');
     inputStream.pipe(transformStream).pipe(outputStream);
     inputStream.write(input);
     inputStream.end();
+  })
 
-    // Test 2: Handling empty input
+  test('Handling empty input', async () => {
     const emptyTransformStream = new TransformStream(options);
     const emptyInputStream = new PassThrough();
     const emptyOutputStream = new PassThrough();
@@ -62,8 +63,9 @@ const assert = require('node:assert');
     emptyInputStream.pipe(emptyTransformStream).pipe(emptyOutputStream);
     emptyInputStream.write(emptyInput);
     emptyInputStream.end();
+  })
 
-    // Test 3: Flushing remaining data
+  test('Flushing remaining data', async () => {
     const flushTransformStream = new TransformStream(options);
     const flushInputStream = new PassThrough();
     const flushOutputStream = new PassThrough();
@@ -76,22 +78,14 @@ const assert = require('node:assert');
     flushOutputStream.on('data', (chunk) => {
       transformedFlushData += chunk.toString();
     });
-
+    once(flushTransformStream, 'end');
     flushOutputStream.on('end', () => {
-      try {
-        assert.deepEqual(JSON.parse(transformedFlushData), expectedFlushOutput);
-        console.log('Test 3: Flushing remaining data - Passed');
-      } catch (error) {
-        console.error('Test 3: Flushing remaining data - Failed', error);
-      }
+      assert.deepEqual(JSON.parse(transformedFlushData), expectedFlushOutput);
     });
 
     flushInputStream.pipe(flushTransformStream).pipe(flushOutputStream);
     flushInputStream.write(flushInput);
     flushInputStream.end();
-  } catch (error) {
-    console.error('An error occurred during the tests:', error);
-  }
-})();
-
+  })
+});
 
